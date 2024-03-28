@@ -5,6 +5,16 @@ VisualStudioVersion = 17.9.34723.18
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CADShark.OpenBatchPDM.Addin", "CADShark.OpenBatchPDM.Addin.csproj", "{5DA2184C-D5BA-4956-B763-131AE0AFCFA2}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CADShark.Common.Analytics", "..\CADShark.Common.Analytics\CADShark.Common.Analytics.csproj", "{DEC27A2C-7074-4E7B-8C08-BAC91F82EC0E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CADShark.Common.DBManager", "..\CADShark.Common.DBManager\CADShark.Common.DBManager.csproj", "{1F68F41A-F560-400E-8AF1-4CC9A0EBC3FE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CADShark.Common.Logging", "..\CADShark.Common.Logging\CADShark.Common.Logging.csproj", "{D02C8BCE-C05A-4648-AAF7-8DD96FCAE198}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CADShark.Common.MultiConverter", "..\CADShark.Common.MultiConverter\CADShark.Common.MultiConverter.csproj", "{98745C50-F699-4260-808C-71371D452F98}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CADShark.Common.Solidworks", "..\CADShark.Common.Solidworks\CADShark.Common.Solidworks.csproj", "{EC7F933E-5000-43BA-ACFE-7260E0EF7226}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +25,26 @@ Global
 		{5DA2184C-D5BA-4956-B763-131AE0AFCFA2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5DA2184C-D5BA-4956-B763-131AE0AFCFA2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5DA2184C-D5BA-4956-B763-131AE0AFCFA2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DEC27A2C-7074-4E7B-8C08-BAC91F82EC0E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DEC27A2C-7074-4E7B-8C08-BAC91F82EC0E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DEC27A2C-7074-4E7B-8C08-BAC91F82EC0E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DEC27A2C-7074-4E7B-8C08-BAC91F82EC0E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1F68F41A-F560-400E-8AF1-4CC9A0EBC3FE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1F68F41A-F560-400E-8AF1-4CC9A0EBC3FE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1F68F41A-F560-400E-8AF1-4CC9A0EBC3FE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1F68F41A-F560-400E-8AF1-4CC9A0EBC3FE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D02C8BCE-C05A-4648-AAF7-8DD96FCAE198}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D02C8BCE-C05A-4648-AAF7-8DD96FCAE198}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D02C8BCE-C05A-4648-AAF7-8DD96FCAE198}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D02C8BCE-C05A-4648-AAF7-8DD96FCAE198}.Release|Any CPU.Build.0 = Release|Any CPU
+		{98745C50-F699-4260-808C-71371D452F98}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{98745C50-F699-4260-808C-71371D452F98}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{98745C50-F699-4260-808C-71371D452F98}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{98745C50-F699-4260-808C-71371D452F98}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EC7F933E-5000-43BA-ACFE-7260E0EF7226}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EC7F933E-5000-43BA-ACFE-7260E0EF7226}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EC7F933E-5000-43BA-ACFE-7260E0EF7226}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EC7F933E-5000-43BA-ACFE-7260E0EF7226}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

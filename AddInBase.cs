@@ -12,7 +12,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Runtime.InteropServices.ComTypes;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 
@@ -38,7 +37,8 @@ namespace CADShark.OpenBatchPDM.Addin
         {
             poInfo.mbsAddInName = "OpenBatch Converter";
             poInfo.mbsCompany = "CADShark";
-            poInfo.mbsDescription = "An add-in for SOLIDWORKS PDM that creates PDF files from SOLIDWORKS drawings and stores data in a database.";
+            poInfo.mbsDescription =
+                "An add-in for SOLIDWORKS PDM that creates PDF files from SOLIDWORKS drawings and stores data in a database.";
             poInfo.mlAddInVersion = 1;
             poInfo.mlRequiredVersionMajor = 31;
             poInfo.mlRequiredVersionMinor = 5;
