@@ -7,7 +7,7 @@
         public string FileName { get; set; }
         public string Revision { get; set; }
         public int CurrentVersion { get; set; }
-        public string DrawPath { get; set; }
+        //public string DrawPath { get; set; }
         public int FolderId { get; set; }
     }
 }

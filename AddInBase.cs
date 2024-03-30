@@ -11,6 +11,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
@@ -22,12 +23,18 @@ namespace CADShark.OpenBatchPDM.Addin
     public class AddInBase : IEdmAddIn5
     {
         private const int CreatePdfCmdId = 1;
+
         private const int GetPdfCmdId = 2;
+
+        //private const int MenuFeedback = 3;
+        //private const int MenuInfo = 4;
+        private const int MenuAdministration = 6;
         private EdmVault5 _vault;
+        private IAddDbContext _db;
         private int _mlParentWnd;
         private static SldWorks _swApp;
         private List<FileInfo> _files;
-
+        private string _connectionString;
         private static string _localPath, _drawPath;
 
 
@@ -39,14 +46,15 @@ namespace CADShark.OpenBatchPDM.Addin
             poInfo.mbsCompany = "CADShark";
             poInfo.mbsDescription =
                 "An add-in for SOLIDWORKS PDM that creates PDF files from SOLIDWORKS drawings and stores data in a database.";
-            poInfo.mlAddInVersion = 1;
+            poInfo.mlAddInVersion = 29022024;
             poInfo.mlRequiredVersionMajor = 31;
             poInfo.mlRequiredVersionMinor = 5;
 
-            poCmdMgr.AddCmd(CreatePdfCmdId, @"Зформувати комплект PDF-файлів",
+            poCmdMgr.AddCmd(CreatePdfCmdId, @"Сформувати комплект PDF-файлів",
                 (int)EdmMenuFlags.EdmMenu_OnlyFiles + (int)EdmMenuFlags.EdmMenu_OnlySingleSelection);
             poCmdMgr.AddCmd(GetPdfCmdId, @"Вивантажити комплект PDF-файлів",
                 (int)EdmMenuFlags.EdmMenu_OnlyFiles + (int)EdmMenuFlags.EdmMenu_OnlySingleSelection);
+            poCmdMgr.AddCmd(MenuAdministration, @"Налаштування", (int)EdmMenuFlags.EdmMenu_Administration);
         }
 
         public void OnCmd(ref EdmCmd poCmd, ref EdmCmdData[] ppoData)
@@ -58,8 +66,6 @@ namespace CADShark.OpenBatchPDM.Addin
 
                 switch (poCmd.mlCmdID)
                 {
-                    case CreatePdfCmdId when poCmd.meCmdType != EdmCmdType.EdmCmd_Menu:
-                        return;
                     case CreatePdfCmdId:
                     {
                         for (var i = 0; i < ppoData.Length; i++)
@@ -73,7 +79,11 @@ namespace CADShark.OpenBatchPDM.Addin
                                 ((EdmCmdData)ppoData.GetValue(i)).mlObjectID1);
                             var fileName = ef.LocalPath + "\\" + fileObject.Name;
 
-                            BachCreatorPdf(fileName);
+                            //Init Connection string
+                            GetConnString();
+
+                            if (!CheckConn()) return;
+                            BatchCreator(fileName);
                         }
 
                         break;
@@ -90,8 +100,18 @@ namespace CADShark.OpenBatchPDM.Addin
                                 ((EdmCmdData)ppoData.GetValue(i)).mlObjectID1);
                             var fileName = ef.LocalPath + "\\" + fileObject.Name;
 
+                            //Init Connection string
+                            GetConnString();
+
+                            if (!CheckConn()) return;
                             GetFiles(fileName);
                         }
+
+                        break;
+                    }
+                    case MenuAdministration:
+                    {
+                        new SettingsForm(_vault).ShowDialog();
 
                         break;
                     }
@@ -100,8 +120,8 @@ namespace CADShark.OpenBatchPDM.Addin
             catch (Exception e)
             {
                 MessageBox.Show(
-                    $"Нам дуже прикро, але в програмі сталася помилка.\nДля вирішення питання, звяжіться з техпідтримкою\n{e.Message}",
-                    "Виникла помилка у роботі програми.", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    $"Нам дуже прикро, але в програмі сталася помилка.\nДля вирішення питання, зв'яжіться з техпідтримкою.\n{e.Message}",
+                    @"Виникла помилка у роботі програми.", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 throw;
             }
         }
@@ -119,20 +139,23 @@ namespace CADShark.OpenBatchPDM.Addin
 
             ListFiles(filePath);
 
+            foreach (var VARIABLE in _files)
+            {
+                Logger.Trace(VARIABLE.FileName);
+            }
+
             var incomingCount = _files.Count;
 
             if (incomingCount == 0) return;
 
-            var db = new AddDbContext();
+            _db = new AddDbContext(_connectionString);
 
             foreach (var file in _files)
             {
-                var items = db.Items.Where(item => item.DocumentId == file.DocumentId);
-
+                var items = _db.Items.Where(item => item.DocumentId == file.DocumentId);
                 foreach (var item in items)
                 {
                     var folderPath = Path.Combine(savePath, item.FileName);
-
                     try
                     {
                         File.WriteAllBytes(folderPath, item.Blob);
@@ -141,8 +164,8 @@ namespace CADShark.OpenBatchPDM.Addin
                     catch (Exception e)
                     {
                         MessageBox.Show(
-                            $"Нам дуже прикро, але в програмі сталася помилка.\nДля вирішення питання, звяжіться з техпідтримкою\n{e.Message}",
-                            "Виникла помилка у роботі програми.", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            $"Нам дуже прикро, але в програмі сталася помилка.\nДля вирішення питання, зв'яжіться з техпідтримкою.\n{e.Message}",
+                            @"Виникла помилка у роботі програми.", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         Logger.Error(e.Message);
                         throw;
                     }
@@ -151,18 +174,18 @@ namespace CADShark.OpenBatchPDM.Addin
 
             if (countItems == incomingCount)
             {
-                MessageBox.Show($"Вивантажено {countItems} з {incomingCount} файлів.", "Звіт по вивантаженю файлів.",
+                MessageBox.Show($"Вивантажено {countItems} з {incomingCount} файлів.", @"Звіт по вивантаженю файлів.",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             else
             {
                 MessageBox.Show(
                     $"Увага! Вивантажено {countItems} з {incomingCount} файлів.\nВивантажено не повний комплек PDF-файлі.",
-                    "Звіт по вивантаженю файлів.", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    @"Звіт по вивантаженю файлів.", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
 
-        public void BachCreatorPdf(string filePath)
+        public void BatchCreator(string filePath)
         {
             try
             {
@@ -170,7 +193,7 @@ namespace CADShark.OpenBatchPDM.Addin
 
                 if (_files.Count == 0)
                 {
-                    MessageBox.Show($"Відсутні файли для перетворення.", "Інформація про процес перетворенню файлів.",
+                    MessageBox.Show(@"Відсутні файли для перетворення.", @"Інформація про процес перетворенню файлів.",
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
@@ -180,19 +203,19 @@ namespace CADShark.OpenBatchPDM.Addin
 
                 if (fileInfos.Count == 0)
                 {
-                    MessageBox.Show($"Відсутні файли для перетворення.", "Інформація про процес перетворенню файлів.",
+                    MessageBox.Show(@"Відсутні файли для перетворення.", @"Інформація про процес перетворенню файлів.",
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
 
-                var db = new AddDbContext();
+                _db = new AddDbContext(_connectionString);
 
-                var notInDbSet = fileInfos.Where(fileInfo => !db.Items.Any(item =>
+                var notInDbSet = fileInfos.Where(fileInfo => !_db.Items.Any(item =>
                     item.DocumentId == fileInfo.DocumentId && item.Revision == fileInfo.Revision)).ToList();
 
                 if (notInDbSet.Count == 0)
                 {
-                    MessageBox.Show($"Відсутні файли для перетворення.", "Інформація про процес перетворенню файлів.",
+                    MessageBox.Show(@"Відсутні файли для перетворення.", @"Інформація про процес перетворенню файлів.",
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
@@ -207,32 +230,83 @@ namespace CADShark.OpenBatchPDM.Addin
 
                 foreach (var file in notInDbSet)
                 {
-                    if (!GetFileCopy(file.DrawPath)) continue;
+                    if (!GetFileCopy(file.FilePath)) continue;
 
-                    model.OpenFile(file.DrawPath);
-                    convert.PathBuilder(file.DrawPath, "PDF", null, AppDataTemp());
-                    convert.ConvertToPdf();
-                    _swApp.CloseDoc(file.DrawPath);
-                    var filepath = ConvertBuilder.FilePath;
-                    var blob = ReadAllBytes(filepath);
+                    var fileType = Path.GetExtension(file.FilePath);
 
-                    var newItem = new Items
+                    switch (fileType)
                     {
-                        DocumentId = file.DocumentId,
-                        FileName = Path.GetFileName(filepath),
-                        Revision = file.Revision,
-                        Version = file.CurrentVersion,
-                        DocType = "PDF",
-                        Blob = blob
-                    };
+                        case ".SLDDRW":
+                        {
+                            model.OpenFile(file.FilePath);
+                            convert.PathBuilder(file.FilePath, "PDF", null, AppDataTemp());
+                            convert.ConvertToPdf();
+                            _swApp.CloseDoc(file.FilePath);
+                            var pdfPath = ConvertBuilder.FilePath;
+                            var blob = ReadAllBytes(pdfPath);
 
-                    db.Items.Add(newItem);
-                    db.SaveChanges();
+                            var newItem = new Items
+                            {
+                                DocumentId = file.DocumentId,
+                                FileName = Path.GetFileName(pdfPath),
+                                Revision = file.Revision,
+                                Version = file.CurrentVersion,
+                                DocType = "PDF",
+                                Blob = blob
+                            };
 
-                    if (filepath == null) continue;
-                    if (!File.Exists(filepath)) continue;
-                    Logger.Trace($"File.Delete {filepath}");
-                    File.Delete(filepath);
+                            _db.Items.Add(newItem);
+                            _db.SaveChanges();
+
+                            if (pdfPath == null) continue;
+                            if (!File.Exists(pdfPath)) continue;
+                            Logger.Trace($"File.Delete {pdfPath}");
+                            File.Delete(pdfPath);
+                            break;
+                        }
+                        case ".SLDPRT":
+                        {
+                            model.OpenFile(file.FilePath);
+
+                            if (!convert.IsSheetMetalComponent()) return;
+
+                            var vConfig = model.GetDerivedConfig();
+                            model.SuppressUpdates(false);
+
+                            foreach (var config in vConfig)
+                            {
+                                convert.PathBuilder(file.FilePath, "DXF", config, AppDataTemp());
+                                convert.ConvertToDxf(true);
+
+                                var dxfPath = ConvertBuilder.FilePath;
+                                var blob = ReadAllBytes(dxfPath);
+                                Logger.Trace($"dxfPath {dxfPath}");
+
+                                var newItem = new Items
+                                {
+                                    DocumentId = file.DocumentId,
+                                    FileName = Path.GetFileName(dxfPath),
+                                    Revision = file.Revision,
+                                    Version = file.CurrentVersion,
+                                    Config = config,
+                                    DocType = "DXF",
+                                    Blob = blob
+                                };
+
+                                _db.Items.Add(newItem);
+                                _db.SaveChanges();
+
+                                if (dxfPath == null) continue;
+                                if (!File.Exists(dxfPath)) continue;
+                                Logger.Trace($"File.Delete {dxfPath}");
+                                File.Delete(dxfPath);
+                            }
+
+                            break;
+                        }
+                    }
+
+                    _swApp.CloseDoc(file.FilePath);
                 }
 
                 _swApp.CloseAllDocuments(true);
@@ -240,14 +314,14 @@ namespace CADShark.OpenBatchPDM.Addin
 
                 instManage.ReleaseInstance(_swApp);
 
-                MessageBox.Show($"Створено {notInDbSet.Count} файлів.", "Звіт по перетворенню файлів.",
+                MessageBox.Show($@"Створено {notInDbSet.Count} файлів.", @"Звіт по перетворенню файлів.",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
                 MessageBox.Show(
-                    $"Нам дуже прикро, але в програмі сталася помилка.\nДля вирішення питання, звяжіться з техпідтримкою \n{ex.Message}",
-                    "Виникла помилка у роботі програми.", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    $"Нам дуже прикро, але в програмі сталася помилка.\nДля вирішення питання, зв'яжіться з техпідтримкою.\n{ex.Message}",
+                    @"Виникла помилка у роботі програми.", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 Logger.Error(ex.Message);
             }
         }
@@ -306,7 +380,7 @@ namespace CADShark.OpenBatchPDM.Addin
                     CurrentRevision = record.Revision,
                     record.CurrentVersion,
                     FolderID = record.FolderId,
-                    record.DrawPath
+                    //record.DrawPath
                 }
                 into grouping
                 orderby grouping.Key.Filepath
@@ -318,7 +392,7 @@ namespace CADShark.OpenBatchPDM.Addin
                     Revision = grouping.Key.CurrentRevision,
                     CurrentVersion = grouping.Key.CurrentVersion,
                     FolderId = grouping.Key.FolderID,
-                    DrawPath = grouping.Key.DrawPath
+                    //DrawPath = grouping.Key.DrawPath
                 }).ToList();
         }
 
@@ -339,17 +413,30 @@ namespace CADShark.OpenBatchPDM.Addin
                 {
                     _localPath = file.GetLocalPath(parentFolder.ID);
 
-                    if (CheckExistFile(_localPath))
+                    fileList.Add(new FileInfo
+                    {
+                        DocumentId = file.ID,
+                        FilePath = _localPath,
+                        FileName = file.Name,
+                        Revision = file.CurrentRevision,
+                        CurrentVersion = file.CurrentVersion,
+                        FolderId = parentFolder.ID
+                    });
+
+                    var drawingFile = CheckExistDrawingFile(_localPath, out var drawFolder);
+
+                    if (drawingFile != null)
+                    {
                         fileList.Add(new FileInfo
                         {
-                            DocumentId = file.ID,
-                            FilePath = _localPath,
-                            FileName = file.Name,
-                            Revision = file.CurrentRevision,
-                            CurrentVersion = file.CurrentVersion,
-                            DrawPath = _drawPath,
-                            FolderId = parentFolder.ID
+                            DocumentId = drawingFile.ID,
+                            FilePath = drawingFile.GetLocalPath(drawFolder.ID),
+                            FileName = drawingFile.Name,
+                            Revision = drawingFile.CurrentRevision,
+                            CurrentVersion = drawingFile.CurrentVersion,
+                            FolderId = drawFolder.ID
                         });
+                    }
                 }
 
                 //Get the reference tree for this file
@@ -378,17 +465,28 @@ namespace CADShark.OpenBatchPDM.Addin
                                 $"ObjectType {(int)@ref.File.ObjectType} @ref.FolderID {@ref.FolderID} file.Name - {@ref.File.Name} {@ref.File.ID} {@ref.FoundPath}");
                         }
 
-                        if (CheckExistFile(@ref.FoundPath))
+                        fileList.Add(new FileInfo
+                        {
+                            DocumentId = @ref.FileID,
+                            FilePath = @ref.FoundPath,
+                            FileName = @ref.Name,
+                            Revision = @ref.File.CurrentRevision,
+                            CurrentVersion = @ref.File.CurrentVersion,
+                            FolderId = @ref.FolderID
+                        });
+
+                        var drawingFile = CheckExistDrawingFile(@ref.FoundPath, out var drawFolder);
+
+                        if (drawingFile != null)
                         {
                             fileList.Add(new FileInfo
                             {
-                                DocumentId = @ref.FileID,
-                                FilePath = @ref.FoundPath,
-                                FileName = @ref.Name,
-                                Revision = @ref.File.CurrentRevision,
-                                CurrentVersion = @ref.File.CurrentVersion,
-                                DrawPath = _drawPath,
-                                FolderId = @ref.FolderID
+                                DocumentId = drawingFile.ID,
+                                FilePath = drawingFile.GetLocalPath(drawFolder.ID),
+                                FileName = drawingFile.Name,
+                                Revision = drawingFile.CurrentRevision,
+                                CurrentVersion = drawingFile.CurrentVersion,
+                                FolderId = drawFolder.ID
                             });
                         }
                     }
@@ -398,13 +496,13 @@ namespace CADShark.OpenBatchPDM.Addin
             }
         }
 
-        public bool CheckExistFile(string path)
+        public IEdmFile5 CheckExistDrawingFile(string path, out IEdmFolder5 drawFolder)
         {
             //Check if drawing file exist in the vault
             _drawPath = Regex.Replace(path.ToUpper(), "SLDASM|SLDPRT", "SLDDRW");
-            var drawObj = _vault.GetFileFromPath(_drawPath, out _);
+            var drawObj = _vault.GetFileFromPath(_drawPath, out drawFolder);
 
-            return drawObj != null;
+            return drawObj;
         }
 
         public bool GetFileCopy(string filePath, string version = "")
@@ -438,6 +536,29 @@ namespace CADShark.OpenBatchPDM.Addin
 
                 return false;
             }
+        }
+
+        private void GetConnString()
+        {
+            var projectDictionary = _vault.GetDictionary("OpenBatch", false);
+            if (projectDictionary == null) return;
+
+            var pos = projectDictionary.StringFindKeys("ConnectionString");
+
+            while (!pos.IsNull)
+            {
+                projectDictionary.StringGetNextAssoc(pos, out _, out var value);
+                _connectionString = value;
+            }
+        }
+
+        private bool CheckConn()
+        {
+            if (!string.IsNullOrEmpty(_connectionString)) return true;
+            MessageBox.Show(
+                $"Не налаштоване підключення до бази даних.\nЗверніться до вашого адміністратора для налаштування підключення.",
+                @"Виникла помилка у роботі програми.", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            return false;
         }
     }
 }
