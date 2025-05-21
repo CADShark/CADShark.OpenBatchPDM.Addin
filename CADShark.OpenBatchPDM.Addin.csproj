@@ -1,6 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="packages\EntityFramework.6.4.4\build\EntityFramework.props" Condition="Exists('packages\EntityFramework.6.4.4\build\EntityFramework.props')" />
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -37,15 +36,10 @@
     <SignAssembly>true</SignAssembly>
   </PropertyGroup>
   <PropertyGroup>
-    <AssemblyOriginatorKeyFile>StrongKey.pfx</AssemblyOriginatorKeyFile>
+    <AssemblyOriginatorKeyFile>
+    </AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="EntityFramework, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, processorArchitecture=MSIL">
-      <HintPath>packages\EntityFramework.6.4.4\lib\net45\EntityFramework.dll</HintPath>
-    </Reference>
-    <Reference Include="EntityFramework.SqlServer, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, processorArchitecture=MSIL">
-      <HintPath>packages\EntityFramework.6.4.4\lib\net45\EntityFramework.SqlServer.dll</HintPath>
-    </Reference>
     <Reference Include="EPDM.Interop.epdm">
       <HintPath>..\References\EPDM.Interop.epdm.dll</HintPath>
       <EmbedInteropTypes>False</EmbedInteropTypes>
@@ -64,16 +58,16 @@
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AddInBase.cs" />
     <Compile Include="FileInfo.cs" />
-    <Compile Include="InfoForm.cs">
-      <SubType>Form</SubType>
+    <Compile Include="OpenBatchTabView.cs" />
+    <Compile Include="OpenBatchTabViewUc.cs">
+      <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="InfoForm.Designer.cs">
-      <DependentUpon>InfoForm.cs</DependentUpon>
+    <Compile Include="OpenBatchTabViewUc.Designer.cs">
+      <DependentUpon>OpenBatchTabViewUc.cs</DependentUpon>
     </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
@@ -91,20 +85,14 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
-    <None Include="packages.config" />
-    <None Include="StrongKey.pfx" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\CADShark.Common.Analytics\CADShark.Common.Analytics.csproj">
-      <Project>{dec27a2c-7074-4e7b-8c08-bac91f82ec0e}</Project>
-      <Name>CADShark.Common.Analytics</Name>
-    </ProjectReference>
     <ProjectReference Include="..\CADShark.Common.DBManager\CADShark.Common.DBManager.csproj">
       <Project>{1f68f41a-f560-400e-8af1-4cc9a0ebc3fe}</Project>
       <Name>CADShark.Common.DBManager</Name>
     </ProjectReference>
     <ProjectReference Include="..\CADShark.Common.Feedback\CADShark.Common.Feedback.csproj">
-      <Project>{85fcf0eb-86de-414e-9db0-010df4e10503}</Project>
+      <Project>{85FCF0EB-86DE-414E-9DB0-010DF4E10503}</Project>
       <Name>CADShark.Common.Feedback</Name>
     </ProjectReference>
     <ProjectReference Include="..\CADShark.Common.Logging\CADShark.Common.Logging.csproj">
@@ -115,14 +103,18 @@
       <Project>{98745c50-f699-4260-808c-71371d452f98}</Project>
       <Name>CADShark.Common.MultiConverter</Name>
     </ProjectReference>
+    <ProjectReference Include="..\CADShark.Common.SolidworksPDM\CADShark.Common.SolidworksPDM.csproj">
+      <Project>{51983437-1027-4033-B208-9A41F2A0E8FF}</Project>
+      <Name>CADShark.Common.SolidworksPDM</Name>
+    </ProjectReference>
     <ProjectReference Include="..\CADShark.Common.Solidworks\CADShark.Common.Solidworks.csproj">
       <Project>{ec7f933e-5000-43ba-acfe-7260e0ef7226}</Project>
       <Name>CADShark.Common.Solidworks</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="InfoForm.resx">
-      <DependentUpon>InfoForm.cs</DependentUpon>
+    <EmbeddedResource Include="OpenBatchTabViewUc.resx">
+      <DependentUpon>OpenBatchTabViewUc.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
@@ -133,13 +125,14 @@
       <SubType>Designer</SubType>
     </EmbeddedResource>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Icons.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Logo_Shark.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Shark.png" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
-    <PropertyGroup>
-      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
-    </PropertyGroup>
-    <Error Condition="!Exists('packages\EntityFramework.6.4.4\build\EntityFramework.props')" Text="$([System.String]::Format('$(ErrorText)', 'packages\EntityFramework.6.4.4\build\EntityFramework.props'))" />
-    <Error Condition="!Exists('packages\EntityFramework.6.4.4\build\EntityFramework.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\EntityFramework.6.4.4\build\EntityFramework.targets'))" />
-  </Target>
-  <Import Project="packages\EntityFramework.6.4.4\build\EntityFramework.targets" Condition="Exists('packages\EntityFramework.6.4.4\build\EntityFramework.targets')" />
 </Project>

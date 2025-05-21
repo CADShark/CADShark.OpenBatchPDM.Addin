@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Windows.Forms;
 
-namespace CADShark.OpenBatchPDM.Addin
+namespace CADShark.OpenBatchPDM.AddIn
 {
     //Wrapper class to use SOLIDWORKS PDM Professional as the parent window
     class WindowHandle : IWin32Window
