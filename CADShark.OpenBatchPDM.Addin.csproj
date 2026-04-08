@@ -8,7 +8,7 @@
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>CADShark.OpenBatchPDM.Addin</RootNamespace>
-    <AssemblyName>OpenBatch</AssemblyName>
+    <AssemblyName>CADShark.OpenBatch.Addin</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
@@ -23,6 +23,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <PlatformTarget>AnyCPU</PlatformTarget>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -48,38 +49,38 @@
       <HintPath>..\References\EPDM.Interop.EPDMResultCode.dll</HintPath>
       <EmbedInteropTypes>False</EmbedInteropTypes>
     </Reference>
-    <Reference Include="SolidWorks.Interop.sldworks">
-      <HintPath>..\References\2023\SolidWorks.Interop.sldworks.dll</HintPath>
+    <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>packages\Newtonsoft.Json.13.0.4\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="SolidWorks.Interop.sldworks, Version=31.3.0.44, Culture=neutral, PublicKeyToken=7c4797c3e4eeac03, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
       <EmbedInteropTypes>False</EmbedInteropTypes>
+      <HintPath>..\References\2024\SolidWorks.Interop.sldworks.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Data" />
     <Reference Include="System.Drawing" />
+    <Reference Include="System.Net.Http" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="Microsoft.CSharp" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AddInBase.cs" />
+    <Compile Include="BlobReader.cs" />
     <Compile Include="FileInfo.cs" />
-    <Compile Include="OpenBatchTabView.cs" />
-    <Compile Include="OpenBatchTabViewUc.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="OpenBatchTabViewUc.Designer.cs">
-      <DependentUpon>OpenBatchTabViewUc.cs</DependentUpon>
-    </Compile>
+    <Compile Include="OpenVaultAPI\ApiResponse.cs" />
+    <Compile Include="OpenVaultAPI\AttributeRequest.cs" />
+    <Compile Include="OpenVaultAPI\AttributeResponse.cs" />
+    <Compile Include="OpenVaultAPI\CreateObjectRequest.cs" />
+    <Compile Include="OpenVaultAPI\CreateObjectResponse.cs" />
+    <Compile Include="OpenVaultAPI\Client.cs" />
+    <Compile Include="OpenVaultAPI\StorageRequest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
-    </Compile>
-    <Compile Include="SettingsForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="SettingsForm.Designer.cs">
-      <DependentUpon>SettingsForm.cs</DependentUpon>
     </Compile>
     <Compile Include="WindowHandle.cs" />
   </ItemGroup>
@@ -87,20 +88,8 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\CADShark.Common.DBManager\CADShark.Common.DBManager.csproj">
-      <Project>{1f68f41a-f560-400e-8af1-4cc9a0ebc3fe}</Project>
-      <Name>CADShark.Common.DBManager</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\CADShark.Common.Feedback\CADShark.Common.Feedback.csproj">
-      <Project>{85FCF0EB-86DE-414E-9DB0-010DF4E10503}</Project>
-      <Name>CADShark.Common.Feedback</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\CADShark.Common.Logging\CADShark.Common.Logging.csproj">
-      <Project>{d02c8bce-c05a-4648-aaf7-8dd96fcae198}</Project>
-      <Name>CADShark.Common.Logging</Name>
-    </ProjectReference>
     <ProjectReference Include="..\CADShark.Common.MultiConverter\CADShark.Common.MultiConverter.csproj">
-      <Project>{98745c50-f699-4260-808c-71371d452f98}</Project>
+      <Project>{98745C50-F699-4260-808C-71371D452F98}</Project>
       <Name>CADShark.Common.MultiConverter</Name>
     </ProjectReference>
     <ProjectReference Include="..\CADShark.Common.SolidworksPDM\CADShark.Common.SolidworksPDM.csproj">
@@ -113,19 +102,13 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="OpenBatchTabViewUc.resx">
-      <DependentUpon>OpenBatchTabViewUc.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
-    <EmbeddedResource Include="SettingsForm.resx">
-      <DependentUpon>SettingsForm.cs</DependentUpon>
-      <SubType>Designer</SubType>
-    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
+    <None Include="packages.config" />
     <None Include="Resources\Icons.ico" />
   </ItemGroup>
   <ItemGroup>
@@ -134,5 +117,6 @@
   <ItemGroup>
     <None Include="Resources\Shark.png" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

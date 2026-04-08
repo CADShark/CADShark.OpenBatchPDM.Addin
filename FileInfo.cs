@@ -1,6 +1,6 @@
 ﻿namespace CADShark.OpenBatchPDM.AddIn
 {
-    public class FileInfo2
+    public class FileInfo
     {
         public int Id { get; set; }
         public string FilePath { get; set; }

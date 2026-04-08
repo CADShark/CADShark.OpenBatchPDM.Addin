@@ -1,22 +1,22 @@
-﻿using CADShark.Common.DBManager.Data;
-using CADShark.Common.DBManager.Models;
-using CADShark.Common.Feedback;
-using CADShark.Common.Logging;
+﻿//using CADShark.Common.Logging;
 using CADShark.Common.MultiConverter;
+using CADShark.Common.MultiConverter.Core;
+using CADShark.Common.MultiConverter.Services;
 using CADShark.Common.SolidWorks;
 using CADShark.Common.SolidWorks.Core;
 using CADShark.Common.SolidWorks.Documents;
 using CADShark.Common.SolidworksPDM;
+using CADShark.OpenBatchPDM.Addin;
+using CADShark.OpenBatchPDM.Addin.OpenVaultAPI;
 using EPDM.Interop.epdm;
 using SolidWorks.Interop.sldworks;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
-using FileInfo = CADShark.Common.SolidworksPDM.FileInfo;
+using FileInfoModel = CADShark.Common.SolidworksPDM.FileInfoModel;
 
 
 namespace CADShark.OpenBatchPDM.AddIn
@@ -27,18 +27,14 @@ namespace CADShark.OpenBatchPDM.AddIn
     {
         private const int CreatePdfCmdId = 1;
         private const int GetPdfCmdId = 2;
-        private const int MenuAdministration = 6;
-        private const int MenuInfoForm = 7;
-        private const int MenuFeedBack = 8;
+        private const int CreateDXFCmdId = 3;
         private EdmVault5 _vault;
-        private IDbManager _db;
         private ISldWorksInstManager _instManage;
         private int _mlParentWnd;
         private static SldWorks _swApp;
-        private List<FileInfo> _files;
-        private string _connectionString;
+        private List<FileInfoModel> _files;
         private PdmInstanceManager _instance;
-        private static readonly CadLogger Logger = CadLogger.GetLogger(nameof(AddInBase));
+        //private static readonly CadLogger Logger = CadLogger.GetLogger<AddInBase>();
 
         public void GetAddInInfo(ref EdmAddInInfo poInfo, IEdmVault5 poVault, IEdmCmdMgr5 poCmdMgr)
         {
@@ -52,20 +48,16 @@ namespace CADShark.OpenBatchPDM.AddIn
                 poInfo.mlRequiredVersionMajor = 31;
                 poInfo.mlRequiredVersionMinor = 5;
 
-                poCmdMgr.AddCmd(CreatePdfCmdId, @"OpenBatch\Сформувати комплект PDF-файлів",
+                poCmdMgr.AddCmd(CreatePdfCmdId, @"OpenBatch\Сформувати PDF-файл",
                     (int)EdmMenuFlags.EdmMenu_OnlyFiles + (int)EdmMenuFlags.EdmMenu_OnlySingleSelection);
-                poCmdMgr.AddCmd(GetPdfCmdId, @"OpenBatch\Вивантажити комплект PDF-файлів",
-                    (int)EdmMenuFlags.EdmMenu_OnlyFiles + (int)EdmMenuFlags.EdmMenu_OnlySingleSelection);
+                poCmdMgr.AddCmd(CreateDXFCmdId, @"OpenBatch\Сформувати DXF-файл",
+    (int)EdmMenuFlags.EdmMenu_OnlyFiles + (int)EdmMenuFlags.EdmMenu_OnlySingleSelection);
 
-                //Administration menu
-                poCmdMgr.AddCmd(MenuAdministration, @"Settings",
-                    (int)EdmMenuFlags.EdmMenu_NeverInContextMenu + (int)EdmMenuFlags.EdmMenu_Administration);
-                poCmdMgr.AddCmd(MenuInfoForm, @"Feedback",
-                    (int)EdmMenuFlags.EdmMenu_NeverInContextMenu + (int)EdmMenuFlags.EdmMenu_Administration);
-                poCmdMgr.AddCmd(MenuFeedBack, @"Leave a review",
-                    (int)EdmMenuFlags.EdmMenu_NeverInContextMenu + (int)EdmMenuFlags.EdmMenu_Administration);
+                //poCmdMgr.AddCmd(GetPdfCmdId, @"OpenBatch\Вивантажити комплект PDF-файлів",
+                //    (int)EdmMenuFlags.EdmMenu_OnlyFiles + (int)EdmMenuFlags.EdmMenu_OnlySingleSelection);
 
-                AddAllHooks(poCmdMgr);
+                //Register to receive a notification when a file has changed state
+                poCmdMgr.AddHook(EdmCmdType.EdmCmd_PostState);
             }
             catch (Exception e)
             {
@@ -75,45 +67,17 @@ namespace CADShark.OpenBatchPDM.AddIn
 
         public void OnCmd(ref EdmCmd poCmd, ref EdmCmdData[] ppoData)
         {
-            try
+            //try
+            //{
+            string filePath;
+            _vault = (EdmVault5)poCmd.mpoVault;
+            _mlParentWnd = poCmd.mlParentWnd;
+
+            _instance = new PdmInstanceManager(_vault, _mlParentWnd);
+
+            switch (poCmd.mlCmdID)
             {
-                string filePath;
-                _vault = (EdmVault5)poCmd.mpoVault;
-                _mlParentWnd = poCmd.mlParentWnd;
-
-                _instance = new PdmInstanceManager(_vault, _mlParentWnd);
-
-                switch (poCmd.mlCmdID)
-                {
-                    case CreatePdfCmdId:
-                    {
-                        var paths = new List<string>();
-
-                        for (var i = 0; i < ppoData.Length; i++)
-                        {
-                            //ID of parent folder of the selected file or folder
-                            var folderObject = _vault.GetObject(EdmObjectType.EdmObject_Folder,
-                                ((EdmCmdData)ppoData.GetValue(i)).mlObjectID3);
-                            var ef = (IEdmFolder5)folderObject;
-
-                            var fileObject = _vault.GetObject(EdmObjectType.EdmObject_File,
-                                ((EdmCmdData)ppoData.GetValue(i)).mlObjectID1);
-                            filePath = Path.Combine(ef.LocalPath, fileObject.Name);
-                            //filePath = ef.LocalPath + "\\" + fileObject.Name;
-
-                            paths.Add(filePath);
-                        }
-
-                        if (paths.Any())
-                        {
-                            GetConnString();
-                            if (!CheckConn()) return;
-                            BatchCreator(paths, ".SLDDRW");
-                        }
-
-                        break;
-                    }
-                    case GetPdfCmdId:
+                case CreatePdfCmdId:
                     {
                         var paths = new List<string>();
 
@@ -126,51 +90,82 @@ namespace CADShark.OpenBatchPDM.AddIn
                             var fileObject = _vault.GetObject(EdmObjectType.EdmObject_File,
                                 ((EdmCmdData)ppoData.GetValue(i)).mlObjectID1);
                             filePath = Path.Combine(ef.LocalPath, fileObject.Name);
+
+                            paths.Add(filePath);
+
+                            BatchCreator(paths, 0);
+                        }
+
+                        break;
+                    }
+                case CreateDXFCmdId:
+                    {
+                        var paths = new List<string>();
+
+                        for (var i = 0; i < ppoData.Length; i++)
+                        {
+                            var folderObject = _vault.GetObject(EdmObjectType.EdmObject_Folder,
+                                ((EdmCmdData)ppoData.GetValue(i)).mlObjectID3);
+                            var ef = (IEdmFolder5)folderObject;
+
+                            var fileObject = _vault.GetObject(EdmObjectType.EdmObject_File,
+                                ((EdmCmdData)ppoData.GetValue(i)).mlObjectID1);
+                            filePath = Path.Combine(ef.LocalPath, fileObject.Name);
+
+                            paths.Add(filePath);
+
+                            BatchCreator(paths, 1);
+                        }
+
+                        break;
+                    }
+                case GetPdfCmdId:
+                    {
+                        var paths = new List<string>();
+
+                        for (var i = 0; i < ppoData.Length; i++)
+                        {
+                            var folderObject = _vault.GetObject(EdmObjectType.EdmObject_Folder,
+                                ((EdmCmdData)ppoData.GetValue(i)).mlObjectID3);
+                            var ef = (IEdmFolder5)folderObject;
+
+                            var fileObject = _vault.GetObject(EdmObjectType.EdmObject_File,
+                                ((EdmCmdData)ppoData.GetValue(i)).mlObjectID1);
+                            filePath = Path.Combine(ef.LocalPath, fileObject.Name);
                             //filePath = ef.LocalPath + "\\" + fileObject.Name;
                             paths.Add(filePath);
                         }
-
-                        if (paths.Any())
-                        {
-                            //Init Connection string
-                            GetConnString();
-
-                            if (!CheckConn()) return;
-                            GetFiles(paths);
-                        }
-
                         break;
                     }
-                    case MenuAdministration:
-                    {
-                        new SettingsForm(_vault).ShowDialog();
 
-                        break;
-                    }
-                    case MenuInfoForm:
-                    {
-                        new InfoForm().ShowDialog();
 
-                        break;
-                    }
-                    case MenuFeedBack:
-                    {
-                        new FeedbackWindow().ShowDialog();
-                        break;
-                    }
-                }
             }
-            catch
-                (Exception e)
-            {
-                MessageBox.Show(
-                    $@"Нам дуже прикро, але в програмі сталася помилка.
-Для вирішення питання, зв'яжіться з техпідтримкою.
-{e.Message} 
-{e.Source}",
-                    @"Виникла помилка у роботі програми.", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                throw;
-            }
+
+            //if (poCmd.meCmdType == EdmCmdType.EdmCmd_PostState)
+            //{
+            //    foreach (EdmCmdData AffectedFile in ppoData)
+            //    {
+            //        if (AffectedFile.mbsStrData2 == "На Утверждении")
+            //        { 
+            //            MessageBox.Show($@"Файл {AffectedFile.mbsStrData1} изменил состояние на 'На Утверждении'.", @"Изменение состояния файла.", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            //        }
+            //    }
+
+            //}
+
+
+            //}
+            //catch
+            //    (Exception e)
+            //{
+            //    MessageBox.Show(
+            //        $@"Нам дуже прикро, але в програмі сталася помилка.
+            //        Для вирішення питання, зв'яжіться з техпідтримкою.
+            //        {e.Message} 
+            //        {e.Source}",
+            //        @"Виникла помилка у роботі програми.", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            //    throw;
+            //}
         }
 
         public void GetFiles(List<string> filePath)
@@ -185,45 +180,36 @@ namespace CADShark.OpenBatchPDM.AddIn
                 var savePath = dig.SelectedPath;
 
                 var countItems = 0;
-                //_instance = new PdmInstanceManager(_vault, _mlParentWnd);
 
                 foreach (var path in filePath)
                 {
-                    _files = _instance.ListFiles(path).Where(drw => drw.FileName.ToUpper().EndsWith(@".SLDDRW"))
-                        .OrderBy(x => x.FileName).ToList();
+                    _files = _instance.ListFiles(path).Where(drw => drw.FileName.ToUpper().EndsWith(@".SLDDRW")).OrderBy(x => x.FileName).ToList();
                 }
-
 
                 var incomingCount = _files.Count;
 
                 if (incomingCount == 0) return;
 
-                _db = new DbManager(_connectionString);
-
-                if (_db == null)
-                {
-                    MessageBox.Show(@"First, set up a connection to the database.");
-                    return;
-                }
 
                 foreach (var file in _files)
                 {
-                    var items = _db.Items().Where(item =>
-                        item.DocumentId == file.DocumentId && item.Version == file.CurrentVersion);
+                    //var items = _db.Items().Where(item =>
+                    //    item.DocumentId == file.DocumentId && item.Version == file.CurrentVersion);
 
-                    foreach (var item in items)
-                    {
-                        var folderPath = Path.Combine(savePath, item.FileName);
-                        
-                        var blob = _db.GetBlobById(item.Id);
-                        if (blob == null)
-                        {
-                            MessageBox.Show($@"Error to save file: {item.FileName}");
-                            continue;
-                        }
-                        File.WriteAllBytes(folderPath, blob);
-                        countItems++;
-                    }
+                    //foreach (var item in items)
+                    //{
+                    //    var folderPath = Path.Combine(savePath, item.FileName);
+
+
+                    //    var blob = _db.GetBlobById(item.Id);
+                    //    if (blob == null)
+                    //    {
+                    //        MessageBox.Show($@"Error to save file: {item.FileName}");
+                    //        continue;
+                    //    }
+                    //    File.WriteAllBytes(folderPath, blob);
+                    countItems++;
+                    //}
                 }
 
 
@@ -234,7 +220,7 @@ namespace CADShark.OpenBatchPDM.AddIn
                 else
                     MessageBox.Show(
                         $@"Увага! Вивантажено {countItems} з {incomingCount} файлів.
-Вивантажено не повний комплект PDF-файлів.",
+                        Вивантажено не повний комплект PDF-файлів.",
                         @"Звіт по вивантаженим файлам.", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             catch (Exception e)
@@ -243,17 +229,16 @@ namespace CADShark.OpenBatchPDM.AddIn
             }
         }
 
-        public void BatchCreator(List<string> filesPath, string typeDoc)
+        public void BatchCreator(List<string> filesPath, int param)
         {
             var count = 0;
-
             try
             {
-                //_instance = new PdmInstanceManager(_vault, _mlParentWnd);
                 foreach (var filePath in filesPath)
                 {
                     _files = _instance.ListFiles(filePath);
                 }
+                //return;
 
                 if (_files.Count == 0)
                 {
@@ -263,127 +248,119 @@ namespace CADShark.OpenBatchPDM.AddIn
                     return;
                 }
 
-                //Get files which consist variable Revision
-                //var fileInfos = _files.Where(file => !string.IsNullOrEmpty(file.Revision)).ToList();
-
-
-                //if (fileInfos.Count == 0)
-                //{
-                //    MessageBox.Show(@"Відсутні файли для перетворення.", @"Інформація про процес перетворенню файлів.",
-                //        MessageBoxButtons.OK, MessageBoxIcon.Information);
-                //    return;
-                //}
-
-                _db = new DbManager(_connectionString);
-
-                if (_db == null)
-                {
-                    MessageBox.Show(@"First, set up a connection to the database.");
-                    return;
-                }
-
-                var notInDbSet = _files.Where(fileInfo => !_db.Items().Any(item =>
-                    item.DocumentId == fileInfo.DocumentId && item.Version == fileInfo.CurrentVersion)).ToList();
-
-                notInDbSet = notInDbSet.Where(x => x.FileName.Contains(typeDoc)).ToList();
-                if (notInDbSet.Count == 0)
-                {
-                    MessageBox.Show(@"Відсутні файли для перетворення. 2 ",
-                        @"Інформація про процес перетворенню файлів.",
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    return;
-                }
-
                 _instManage = new SldWorksInstManager();
                 _swApp = _instManage.GetNewInstance();
-                _swApp.Visible = true;
 
                 IAssemblyDocument model = new AssemblyDocument(_swApp);
 
-                var convert = new ConvertBuilder(_swApp);
-
-
-                foreach (var file in notInDbSet)
+                var factory = new ConverterFactory(_swApp);
+                var pdfConverter = factory.Create(ExportFormat.Pdf);
+                var dxfConverter = factory.Create(ExportFormat.Dxf);
+                IFilePathBuilder pathBuilder = new FilePathBuilder();
+                var client = new Client();
+                foreach (var file in _files)
                 {
                     if (!_instance.GetFileCopy(file.FilePath)) continue;
-
                     var fileType = Path.GetExtension(file.FilePath);
                     switch (fileType)
                     {
                         case @".SLDDRW":
-                        {
-                            model.OpenFile(file.FilePath, OpenDocumentOptions.ReadOnly);
-                            convert.PathBuilder(file.FilePath, "PDF", null, AppDataTemp());
-                            var pdfPath = ConvertBuilder.FilePath;
-                            model.SuppressUpdates(false);
-                            convert.ConvertToPdf();
-
-                            //var qrCode = GetHyperlink("explore", file);
-                            //var qrCode = GetHyperlink(file, "explore");
-                            //GetBarcode(pdfPath, qrCode, out var outFileName);
-
-                            var blob = ReadAllBytes(pdfPath);
-                            //var blob = ReadAllBytes(!string.IsNullOrEmpty(outFipdfPathleName) ? outFileName : pdfPath);
-                            //if (blob == null)
-                            //{
-                            //    Logger.Error($"Bytes is null outFileName {outFileName}");
-                            //    continue;
-                            //}
-
-                            var newItem = new Items
                             {
-                                DocumentId = file.DocumentId,
-                                FileName = Path.GetFileName(pdfPath),
-                                Revision = file.Revision,
-                                Version = file.CurrentVersion,
-                                DocType = "PDF",
-                                Blob = blob
-                            };
+                                if (param == 1) continue;
+                                //var request = new SearchRequest
+                                //{
+                                //    Filters = new[]
+                                //    {
+                                //        new Filter { AttributeId = 2001, Value = file.DocumentId.ToString() },
+                                //        new Filter { AttributeId = 2002, Value = file.CurrentVersion.ToString() }
+                                //     }
+                                //};
 
-                            _db.Add(newItem);
-                            count++;
-                            break;
-                        }
-                        case ".SLDPRT":
-                        {
-                            model.OpenFile(file.FilePath, OpenDocumentOptions.ReadOnly);
+                                //int[] objectIds = client.SearchObjectsAsync(request).GetAwaiter().GetResult();
 
-                            if (!convert.IsSheetMetalComponent())
-                            {
-                                _swApp.CloseDoc(file.FilePath);
-                                continue;
+                                //if (objectIds != null) continue;
+
+                                //MessageBox.Show($@"Знайдено {objectIds.Length} об'єктів з атрибутами DocumentId = {file.DocumentId} та Version = {file.CurrentVersion}.", @"Результат пошуку об'єктів.", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                                var modelDoc = model.OpenFile(file.FilePath, OpenDocumentOptions.ReadOnly);
+                                var pdfPath = pathBuilder.Build(file.FilePath, ExportFormat.Pdf, null, AppDataTemp());
+                                var status = pdfConverter.Export(modelDoc, pdfPath);
+
+                                //if(!status) continue;
+
+                                var blob = BlobReader.ReadAllBytes(pdfPath);
+                                var pdfName = Path.GetFileName(pdfPath);
+                                var objectId = client.CreateObjectAsync(1742).GetAwaiter().GetResult();
+
+                                //Обозначение
+                                //_ = client.AddAttribute(objectId, 9, "");
+                                //Наименование
+                                //_ = client.AddAttribute(objectId, 10, "");
+                                //FileID
+                                _ = client.AddAttribute(objectId, 2001, file.DocumentId.ToString());
+                                //Version
+                                _ = client.AddAttribute(objectId, 2002, file.CurrentVersion.ToString());
+                                //File
+                                _ = client.AddAttribute(objectId, 1002, pdfName);
+                                //Preview
+                                //_ = client.AddAttribute(objectId, 1002, pdfName);
+
+                                //Upload PDF-file 
+                                _ = client.WritteBlob(pdfName, blob, objectId, 1002, 0);
+                                //upload preview
+                                //_ = client.WritteBlob(pdfName, blob, objectId, 1002, 0);
+
+                                break;
                             }
-
-                            var vConfig = model.GetDerivedConfig();
-                            model.SuppressUpdates(false);
-
-                            foreach (var config in vConfig)
+                        case @".SLDPRT":
                             {
-                                convert.PathBuilder(file.FilePath, "DXF", config, AppDataTemp());
-                                convert.ConvertToDxf(true);
+                                if (param == 0) continue;
+                                //var request = new SearchRequest
+                                //{
+                                //    Filters = new[]
+                                //    {
+                                //        new Filter { AttributeId = 2001, Value = file.DocumentId.ToString() },
+                                //        new Filter { AttributeId = 2002, Value = file.CurrentVersion.ToString() }
+                                //     }
+                                //};
 
-                                var dxfPath = ConvertBuilder.FilePath;
-                                var blob = ReadAllBytes(dxfPath);
+                                //int[] objectIds = client.SearchObjectsAsync(request).GetAwaiter().GetResult();
 
-                                var newItem = new Items
-                                {
-                                    DocumentId = file.DocumentId,
-                                    FileName = Path.GetFileName(dxfPath),
-                                    Revision = file.Revision,
-                                    Version = file.CurrentVersion,
-                                    Config = config,
-                                    DocType = "DXF",
-                                    Blob = blob
-                                };
+                                //if (objectIds != null) continue;
 
-                                _db.Add(newItem);
+                                //MessageBox.Show($@"Знайдено {objectIds.Length} об'єктів з атрибутами DocumentId = {file.DocumentId} та Version = {file.CurrentVersion}.", @"Результат пошуку об'єктів.", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                                var modelDoc = model.OpenFile(file.FilePath, OpenDocumentOptions.ReadOnly);
+                                var dxfPath = pathBuilder.Build(file.FilePath, ExportFormat.Dxf, null, AppDataTemp());
+                                var status = dxfConverter.Export(modelDoc, dxfPath);
+
+                                if(!status) continue;
+
+                                var blob = BlobReader.ReadAllBytes(dxfPath);
+                                var dxfName = Path.GetFileName(dxfPath);
+                                var objectId = client.CreateObjectAsync(1742).GetAwaiter().GetResult();
+
+                                //Обозначение
+                                //_ = client.AddAttribute(objectId, 9, "");
+                                //Наименование
+                                //_ = client.AddAttribute(objectId, 10, "");
+                                //FileID
+                                _ = client.AddAttribute(objectId, 2001, file.DocumentId.ToString());
+                                //Version
+                                _ = client.AddAttribute(objectId, 2002, file.CurrentVersion.ToString());
+                                //File
+                                _ = client.AddAttribute(objectId, 1002, dxfName);
+                                //Preview
+                                //_ = client.AddAttribute(objectId, 1002, dxfName);
+
+                                //Upload PDF-file 
+                                _ = client.WritteBlob(dxfName, blob, objectId, 1002, 0);
+                                //upload preview
+                                //_ = client.WritteBlob(dxfName, blob, objectId, 1002, 0);
+
+                                break;
                             }
-
-                            count++;
-                            break;
-                        }
                     }
-
                     _swApp.CloseDoc(file.FilePath);
                 }
 
@@ -401,13 +378,13 @@ namespace CADShark.OpenBatchPDM.AddIn
             {
                 MessageBox.Show(
                     $@"Нам дуже прикро, але в програмі сталася помилка.
-Для вирішення питання, зв'яжіться з техпідтримкою.
-{e.Message} 
-{e.Source}",
+                    Для вирішення питання, зв'яжіться з техпідтримкою.
+                    {e.Message} 
+                    {e.Source}",
                     @"Виникла помилка у роботі програми.", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 MessageBox.Show(e.StackTrace);
                 MessageBox.Show(e.Source);
-                Logger.Error(e.Message);
+                //Logger.Error(e.Message);
             }
         }
 
@@ -418,92 +395,12 @@ namespace CADShark.OpenBatchPDM.AddIn
             return appdataPath;
         }
 
-        public byte[] ReadAllBytes(string filePath)
-        {
-            byte[] fileBytes = null;
-            // Check if the file exists
-            if (File.Exists(filePath))
-                try
-                {
-                    // Read all bytes from the file
-                    fileBytes = File.ReadAllBytes(filePath);
-                }
-                catch (IOException e)
-                {
-                    Logger.Error($@"An IO exception occurred: {e.Message}");
-                }
-                catch (UnauthorizedAccessException e)
-                {
-                    Logger.Error($@"Access to the file is unauthorized: {e.Message}");
-                }
-                catch (Exception e)
-                {
-                    Logger.Error($@"@An error occurred: {e.Message}");
-                }
-            else
-                Logger.Error(@"File does not exist.");
 
-            return fileBytes;
-        }
-
-        private void GetConnString()
-        {
-            var projectDictionary = _vault.GetDictionary("OpenBatch", false);
-            if (projectDictionary == null) return;
-
-            var pos = projectDictionary.StringFindKeys("ConnectionString");
-
-            while (!pos.IsNull)
-            {
-                projectDictionary.StringGetNextAssoc(pos, out _, out var value);
-                _connectionString = value;
-            }
-        }
-
-        private bool CheckConn()
-        {
-            if (!string.IsNullOrEmpty(_connectionString)) return true;
-            MessageBox.Show(
-                $@"Не налаштоване підключення до бази даних.
-Зверніться до вашого адміністратора для налаштування підключення.",
-                @"Виникла помилка у роботі програми.", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            return false;
-        }
-
-        private string GetHyperlink(FileInfo file, string action)
-        {
-            return
-                $@"conisio://{_vault.Name}/{action}?projectid={file.DocumentId}&documentid={file.FolderId}&objecttype={1}";
-        }
 
         private void DeleteTempFolder()
         {
             if (Directory.Exists(AppDataTemp()))
                 new DirectoryInfo(AppDataTemp()).Delete(true);
-        }
-
-        private void GetBarcode(string filePath, string code, out string outFileName)
-        {
-            outFileName = null;
-            var exePath = System.Environment.GetFolderPath(System.Environment.SpecialFolder.ApplicationData);
-            exePath = Path.Combine(exePath, @"CADShark", "OpenBatch", "CADShark.Common.PDF.exe");
-            if (!File.Exists(exePath)) Logger.Error("CreateBarcode CADShark.Common.PDF.exe does not exists.");
-
-            using (var process = new Process())
-            {
-                process.StartInfo.FileName = exePath;
-                process.StartInfo.Arguments = $"{filePath} {code}";
-                process.StartInfo.UseShellExecute = false;
-                process.Start();
-                process.WaitForExit();
-            }
-
-            var directoryName = Path.GetDirectoryName(filePath);
-            var fileName = Path.GetFileName(filePath);
-
-            if (directoryName == null) return;
-            var outFolderName = Path.Combine(directoryName, "QR");
-            outFileName = Path.Combine(outFolderName, fileName);
         }
 
         private void AddAllHooks(IEdmCmdMgr5 poCmdMgr)
