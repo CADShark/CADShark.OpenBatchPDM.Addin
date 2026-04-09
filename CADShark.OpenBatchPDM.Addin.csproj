@@ -88,10 +88,6 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\CADShark.Common.MultiConverter\CADShark.Common.MultiConverter.csproj">
-      <Project>{98745C50-F699-4260-808C-71371D452F98}</Project>
-      <Name>CADShark.Common.MultiConverter</Name>
-    </ProjectReference>
     <ProjectReference Include="..\CADShark.Common.SolidworksPDM\CADShark.Common.SolidworksPDM.csproj">
       <Project>{51983437-1027-4033-B208-9A41F2A0E8FF}</Project>
       <Name>CADShark.Common.SolidworksPDM</Name>
