@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.ComTypes;
 using System.Windows.Forms;
 using FileInfoModel = CADShark.Common.SolidworksPDM.FileInfoModel;
 
@@ -260,42 +261,45 @@ namespace CADShark.OpenBatchPDM.AddIn
                 var client = new Client();
                 foreach (var file in _files)
                 {
+                    
                     if (!_instance.GetFileCopy(file.FilePath)) continue;
                     var fileType = Path.GetExtension(file.FilePath);
-                    switch (fileType)
+                    switch (param)
                     {
-                        case @".SLDDRW":
+                        case 0:
                             {
-                                if (param == 1) continue;
-                                //var request = new SearchRequest
-                                //{
-                                //    Filters = new[]
-                                //    {
-                                //        new Filter { AttributeId = 2001, Value = file.DocumentId.ToString() },
-                                //        new Filter { AttributeId = 2002, Value = file.CurrentVersion.ToString() }
-                                //     }
-                                //};
+                                if (Path.GetExtension(file.FilePath).ToUpper() != @".SLDDRW") continue;
 
-                                //int[] objectIds = client.SearchObjectsAsync(request).GetAwaiter().GetResult();
+                                var request = new SearchRequest
+                                {
+                                    Filters = new[]
+                                    {
+                                        new Filter { AttributeId = 2001, Value = file.DocumentId.ToString() },
+                                        new Filter { AttributeId = 2002, Value = file.CurrentVersion.ToString() }
+                                     }
+                                };
 
-                                //if (objectIds != null) continue;
+                                int[] objectIds = client.SearchObjectsAsync(request).GetAwaiter().GetResult();
 
-                                //MessageBox.Show($@"Знайдено {objectIds.Length} об'єктів з атрибутами DocumentId = {file.DocumentId} та Version = {file.CurrentVersion}.", @"Результат пошуку об'єктів.", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                if (objectIds != null) continue;
 
                                 var modelDoc = model.OpenFile(file.FilePath, OpenDocumentOptions.ReadOnly);
                                 var pdfPath = pathBuilder.Build(file.FilePath, ExportFormat.Pdf, null, AppDataTemp());
                                 var status = pdfConverter.Export(modelDoc, pdfPath);
-
-                                //if(!status) continue;
+                                
+                                var configName = modelDoc.ConfigurationManager.ActiveConfiguration.Name;
+                                var number = SwPropertyManager.GetProperty(modelDoc, configName, "Обозначение");
+                                var description = SwPropertyManager.GetProperty(modelDoc, configName, "Наименование");
+                                if(!status) continue;
 
                                 var blob = BlobReader.ReadAllBytes(pdfPath);
                                 var pdfName = Path.GetFileName(pdfPath);
                                 var objectId = client.CreateObjectAsync(1742).GetAwaiter().GetResult();
 
                                 //Обозначение
-                                //_ = client.AddAttribute(objectId, 9, "");
+                                _ = client.AddAttribute(objectId, 9, number);
                                 //Наименование
-                                //_ = client.AddAttribute(objectId, 10, "");
+                                _ = client.AddAttribute(objectId, 10, description);
                                 //FileID
                                 _ = client.AddAttribute(objectId, 2001, file.DocumentId.ToString());
                                 //Version
@@ -312,51 +316,76 @@ namespace CADShark.OpenBatchPDM.AddIn
 
                                 break;
                             }
-                        case @".SLDPRT":
+                        case 1:
                             {
-                                if (param == 0) continue;
-                                //var request = new SearchRequest
-                                //{
-                                //    Filters = new[]
-                                //    {
-                                //        new Filter { AttributeId = 2001, Value = file.DocumentId.ToString() },
-                                //        new Filter { AttributeId = 2002, Value = file.CurrentVersion.ToString() }
-                                //     }
-                                //};
+                                if (Path.GetExtension(file.FilePath).ToUpper() != @".SLDPRT") continue;
 
-                                //int[] objectIds = client.SearchObjectsAsync(request).GetAwaiter().GetResult();
+                                var request = new SearchRequest
+                                {
+                                    Filters = new[]
+                                    {
+                                        new Filter { AttributeId = 2001, Value = file.DocumentId.ToString() },
+                                        new Filter { AttributeId = 2002, Value = file.CurrentVersion.ToString() }
+                                     }
+                                };
 
-                                //if (objectIds != null) continue;
+                                int[] objectIds = client.SearchObjectsAsync(request).GetAwaiter().GetResult();
 
-                                //MessageBox.Show($@"Знайдено {objectIds.Length} об'єктів з атрибутами DocumentId = {file.DocumentId} та Version = {file.CurrentVersion}.", @"Результат пошуку об'єктів.", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                if (objectIds.Length != 0) continue;
 
+                                //Get properties from SOLIDWORKS file
                                 var modelDoc = model.OpenFile(file.FilePath, OpenDocumentOptions.ReadOnly);
+                                var configName = modelDoc.ConfigurationManager.ActiveConfiguration.Name;
+                                var number = SwPropertyManager.GetProperty(modelDoc, configName, "Обозначение");
+                                var description = SwPropertyManager.GetProperty(modelDoc, configName, "Наименование");
+                                var mass = SwPropertyManager.GetProperty(modelDoc, configName, "Масса");
+                                var material = SwPropertyManager.GetProperty(modelDoc, configName, "Материал");
+
+
+                                //Create DXF file
                                 var dxfPath = pathBuilder.Build(file.FilePath, ExportFormat.Dxf, null, AppDataTemp());
                                 var status = dxfConverter.Export(modelDoc, dxfPath);
 
                                 if(!status) continue;
 
+                                //Build preview
+                                var previewBitmapPath = Path.Combine(AppDataTemp(), Path.GetFileNameWithoutExtension(file.FilePath) + ".bmp");
+                                status = _swApp.GetPreviewBitmapFile(file.FilePath, configName, previewBitmapPath);
+                                byte[] previewBlob = null;
+
+
+
                                 var blob = BlobReader.ReadAllBytes(dxfPath);
                                 var dxfName = Path.GetFileName(dxfPath);
-                                var objectId = client.CreateObjectAsync(1742).GetAwaiter().GetResult();
+
+                                var objectId = client.CreateObjectAsync(1743).GetAwaiter().GetResult();
 
                                 //Обозначение
-                                //_ = client.AddAttribute(objectId, 9, "");
+                                _ = client.AddAttribute(objectId, 9, number);
                                 //Наименование
-                                //_ = client.AddAttribute(objectId, 10, "");
+                                _ = client.AddAttribute(objectId, 10, description);
+                                //Масса
+                                _ = client.AddAttribute(objectId, 1000, mass);
+                                //Материал
+                                _ = client.AddAttribute(objectId, 1181, material);
                                 //FileID
                                 _ = client.AddAttribute(objectId, 2001, file.DocumentId.ToString());
                                 //Version
                                 _ = client.AddAttribute(objectId, 2002, file.CurrentVersion.ToString());
                                 //File
                                 _ = client.AddAttribute(objectId, 1002, dxfName);
-                                //Preview
-                                //_ = client.AddAttribute(objectId, 1002, dxfName);
-
-                                //Upload PDF-file 
+                                //Upload blob
                                 _ = client.WritteBlob(dxfName, blob, objectId, 1002, 0);
-                                //upload preview
-                                //_ = client.WritteBlob(dxfName, blob, objectId, 1002, 0);
+
+                                if (status)
+                                {
+                                    previewBlob = BlobReader.ReadAllBytes(previewBitmapPath);
+                                    var previewBitmapName = Path.GetFileName(previewBitmapPath);
+                                    //Preview
+                                    _ = client.AddAttribute(objectId, 18048, dxfName);
+                                    //upload preview
+                                    _ = client.WritteBlob(previewBitmapName, previewBlob, objectId, 1002, 0);
+                                }
 
                                 break;
                             }
