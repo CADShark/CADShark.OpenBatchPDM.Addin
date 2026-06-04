@@ -1,7 +1,5 @@
 ﻿namespace CADShark.OpenBatchPDM.Addin.OpenVaultAPI
 {
-    public partial class Client
-    {
         public class StorageRequest
         {
             public string FileName { get; set; }
@@ -11,4 +9,3 @@
             public int LinkType { get; set; }
         }
     }
-}

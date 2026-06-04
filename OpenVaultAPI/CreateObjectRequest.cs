@@ -13,6 +13,10 @@ namespace CADShark.OpenBatchPDM.Addin.OpenVaultAPI
     public class SearchRequest
     {
         public Filter[] Filters { get; set; }
+
+        public int[] ObjectTypeId { get; set; }
+
+        public int? VersionId { get; set; }
     }
 
     public class Filter

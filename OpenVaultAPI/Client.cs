@@ -1,5 +1,4 @@
-﻿using ConsoleHTTP;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using System;
 using System.Net.Http;
 using System.Text;
@@ -20,7 +19,7 @@ namespace CADShark.OpenBatchPDM.Addin.OpenVaultAPI
 
                 _client = new HttpClient(handler)
                 {
-                    BaseAddress = new Uri("https://192.168.1.109:443/")
+                    BaseAddress = new Uri("https://SRV-PDM:443")
                 };
             }
 
@@ -55,10 +54,8 @@ namespace CADShark.OpenBatchPDM.Addin.OpenVaultAPI
                 var request = new AttributeRequest
                 {
                     AttributeId = attributeId,
-                    Value = value
+                    StringValue = value
                 };
-
-
 
                 var json = JsonConvert.SerializeObject(request);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
@@ -142,7 +139,7 @@ namespace CADShark.OpenBatchPDM.Addin.OpenVaultAPI
                 var request = new StorageRequest
                 {
                     FileName = fileName,
-                    FileBody = Convert.ToBase64String(fileBody), // 🔥 ВАЖНО
+                    FileBody = Convert.ToBase64String(fileBody),
                     ObjectLinkId = objectLinkId,
                     AttributeId = attributeId,
                     LinkType = linkType

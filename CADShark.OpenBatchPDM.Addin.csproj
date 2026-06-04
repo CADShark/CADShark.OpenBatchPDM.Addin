@@ -49,13 +49,10 @@
       <HintPath>..\References\EPDM.Interop.EPDMResultCode.dll</HintPath>
       <EmbedInteropTypes>False</EmbedInteropTypes>
     </Reference>
-    <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <HintPath>packages\Newtonsoft.Json.13.0.4\lib\net45\Newtonsoft.Json.dll</HintPath>
-    </Reference>
-    <Reference Include="SolidWorks.Interop.sldworks, Version=31.3.0.44, Culture=neutral, PublicKeyToken=7c4797c3e4eeac03, processorArchitecture=MSIL">
+    <Reference Include="SolidWorks.Interop.sldworks, Version=32.5.0.48, Culture=neutral, PublicKeyToken=7c4797c3e4eeac03, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <EmbedInteropTypes>False</EmbedInteropTypes>
-      <HintPath>..\References\2024\SolidWorks.Interop.sldworks.dll</HintPath>
+      <HintPath>..\References\SolidWorks.Interop.sldworks.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -68,7 +65,6 @@
   <ItemGroup>
     <Compile Include="AddInBase.cs" />
     <Compile Include="BlobReader.cs" />
-    <Compile Include="FileInfo.cs" />
     <Compile Include="OpenVaultAPI\ApiResponse.cs" />
     <Compile Include="OpenVaultAPI\AttributeRequest.cs" />
     <Compile Include="OpenVaultAPI\AttributeResponse.cs" />
@@ -88,6 +84,10 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\CADShark.Common.MultiConverter\CADShark.Common.MultiConverter.csproj">
+      <Project>{98745c50-f699-4260-808c-71371d452f98}</Project>
+      <Name>CADShark.Common.MultiConverter</Name>
+    </ProjectReference>
     <ProjectReference Include="..\CADShark.Common.SolidworksPDM\CADShark.Common.SolidworksPDM.csproj">
       <Project>{51983437-1027-4033-B208-9A41F2A0E8FF}</Project>
       <Name>CADShark.Common.SolidworksPDM</Name>
@@ -104,7 +104,6 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
     <None Include="Resources\Icons.ico" />
   </ItemGroup>
   <ItemGroup>
@@ -113,6 +112,10 @@
   <ItemGroup>
     <None Include="Resources\Shark.png" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json">
+      <Version>13.0.4</Version>
+    </PackageReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

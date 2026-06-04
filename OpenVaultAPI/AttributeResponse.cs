@@ -1,4 +1,4 @@
-﻿namespace ConsoleHTTP
+﻿namespace CADShark.OpenBatchPDM.Addin.OpenVaultAPI
 {
     public class AttributeResponse
     {
